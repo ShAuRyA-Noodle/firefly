@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useAction, useQuery } from 'convex/react'
-import { useConvexAuth } from '@convex-dev/auth/react'
+import { useAction, useQuery, useConvexAuth } from 'convex/react'
 import { useAuthActions } from '@convex-dev/auth/react'
 import { api } from '../../convex/_generated/api'
 import { FrameContainer } from '../components/FrameContainer'
