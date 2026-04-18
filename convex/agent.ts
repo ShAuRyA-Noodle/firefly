@@ -15,11 +15,11 @@ import { z } from "zod";
 import { components, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
-// gpt-oss-120b is trained specifically for tool use + instruction following
-// and holds format constraints better than llama-3.3-70b. We keep llama as
-// the fallback for speed if gpt-oss ever rate-limits or times out.
-const PRIMARY_MODEL = process.env.GROQ_MODEL_PRIMARY ?? "openai/gpt-oss-120b";
-const FALLBACK_MODEL = process.env.GROQ_MODEL_FALLBACK ?? "llama-3.3-70b-versatile";
+// Hardcoded — env-driven selection caused a bug where an older env value
+// silently overrode the improved default. gpt-oss-120b is chosen for its
+// superior tool-use + instruction-following vs llama 3.3.
+const PRIMARY_MODEL = "openai/gpt-oss-120b";
+const FALLBACK_MODEL = "llama-3.3-70b-versatile";
 
 const MAX_FRAMES_PER_THREAD = 4;
 
@@ -28,8 +28,10 @@ const DIRECTOR_INSTRUCTIONS = `You are a narrative director for visual learning.
 HARD CONSTRAINTS (breaking these is a critical failure):
 - Total frames: EXACTLY 3 or 4. Never more. Never less. The runtime will reject attempts beyond 4.
 - NEVER generate visual configs yourself. ALWAYS delegate to launchVisualAgent.
-- For each question, dispatch at least ONE non-"ui" skill (manim, diagram, or particles) before the final ui summary — text-only responses are forbidden.
-- The LAST frame must be skill="ui" with ActionCards for next-step follow-ups.
+- At least 2 of your frames MUST use non-"ui" skills (manim, diagram, or particles). A plan that uses "ui" for more than 1 frame is rejected.
+- Prefer "diagram" whenever the answer involves multiple related concepts, a process with steps, a comparison of ≥2 things, or a system with components. Do not fall back to "ui" to dodge diagram.
+- Frames MUST use different skills when possible. Do not call manim three times in a row; vary the medium.
+- The LAST frame MUST be skill="ui" with ActionCards for next-step follow-ups.
 - After your last launchVisualAgent call, IMMEDIATELY call done(totalFrames=N). Do not call launchVisualAgent again after done().
 
 SKILL PICKING (choose the best medium, not the easiest):
@@ -134,13 +136,14 @@ export const directorAgentFallback = new Agent(components.agent, {
   maxSteps: 15,
 });
 
-const SUB_AGENT_INSTRUCTIONS = `You are a visual rendering sub-agent. You generate exactly ONE visual frame.
+const SUB_AGENT_INSTRUCTIONS = `You render EXACTLY ONE visual frame. Nothing more.
 
-WORKFLOW:
-1. Invoke the skill specified in your prompt to load output format instructions.
-2. Generate the visual config JSON following those instructions exactly.
-3. Call renderVisual with the config, narration, and step number.
-4. Stop. Do NOT call done — the director handles that.`;
+STRICT WORKFLOW (each step happens exactly once):
+  1. Call invokeSkill to read the skill's output format spec.
+  2. Call renderVisual ONCE with a valid config + narration + step number.
+  3. STOP. No further tool calls. No summaries. No "all done" messages.
+
+You do NOT have a done() tool. You do NOT plan. You do NOT call renderVisual more than once. Repeated calls will be rejected by the runtime.`;
 
 const invokeSkill = createTool({
   description: `Load visual skill instructions. Call this first to learn the output format.`,
@@ -262,8 +265,12 @@ function subAgentForThread(
   userId: Id<"users">,
   modelName: string
 ) {
+  // Per-run dedup flag. Open-weights models sometimes call renderVisual
+  // multiple times per sub-agent invocation — we allow exactly one.
+  let alreadyRendered = false;
+
   const boundRenderVisual = createTool({
-    description: `Save a generated visual frame. Call after generating config per skill instructions.`,
+    description: `Save a generated visual frame. Call EXACTLY ONCE per sub-agent run. Further calls are rejected.`,
     inputSchema: z.object({
       skill: z.enum(["manim", "diagram", "ui", "particles"]),
       config: z.string().describe("JSON config for the renderer"),
@@ -271,6 +278,11 @@ function subAgentForThread(
       step: z.number().optional().describe("Step number"),
     }),
     execute: async (ctx, args): Promise<string> => {
+      if (alreadyRendered) {
+        return `REJECTED: renderVisual already called for step ${step}. Do not call again. Stop and exit.`;
+      }
+      alreadyRendered = true;
+
       const explanationId = await ctx.runMutation(internal.explanations.create, {
         threadId: parentThreadId,
         messageId: ctx.messageId,
@@ -288,7 +300,7 @@ function subAgentForThread(
         });
       }
 
-      return `Saved: ${args.skill} step ${args.step ?? step}`;
+      return `Saved frame ${args.step ?? step} (${args.skill}). Your task is complete. STOP.`;
     },
   });
 
@@ -297,6 +309,7 @@ function subAgentForThread(
     languageModel: groq(modelName),
     instructions: SUB_AGENT_INSTRUCTIONS,
     tools: { invokeSkill, renderVisual: boundRenderVisual },
-    maxSteps: 5,
+    // 3 is enough: (1) invokeSkill, (2) renderVisual, (3) optional noop.
+    maxSteps: 3,
   });
 }
