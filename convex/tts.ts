@@ -16,7 +16,7 @@ export const generateAudio = internalAction({
     try {
       const { audioBytes, mimeType } = await sarvamTts(narration);
       const storageId = await ctx.storage.store(
-        new Blob([audioBytes], { type: mimeType }),
+        new Blob([audioBytes as BlobPart], { type: mimeType }),
       );
       const timings = await groqWhisperAlign(audioBytes, mimeType);
 

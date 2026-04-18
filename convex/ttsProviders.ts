@@ -214,7 +214,7 @@ export async function groqWhisperAlign(
 
   const form = new FormData();
   // Using a Blob with the WAV mime type so Whisper's auto-detection picks the right decoder.
-  form.append("file", new Blob([audioBytes], { type: mimeType }), "audio.wav");
+  form.append("file", new Blob([audioBytes as BlobPart], { type: mimeType }), "audio.wav");
   form.append("model", model);
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "word");
