@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.35",
-    "@auth/core": "^0.34.3",
+    "@auth/core": "^0.37.0",
     "@convex-dev/agent": "^0.6.1",
     "@convex-dev/auth": "^0.0.91",
     "@convex-dev/rate-limiter": "^0.3.2",

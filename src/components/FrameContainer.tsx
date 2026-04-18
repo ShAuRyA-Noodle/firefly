@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { SkillRouter } from './SkillRouter'
 
 type Explanation = {
@@ -19,17 +19,21 @@ export function FrameContainer({
   isLoading: boolean
   onAction?: (prompt: string) => void
 }) {
-  // Filter out _done markers, but track if generation is complete
   const isDone = explanations.some((e) => e.skill === '_done')
   const visuals = explanations.filter((e) => e.skill !== '_done' && e.skill !== 'intro')
 
-  const sorted = [...visuals].sort((a, b) => {
-    if (a.step != null && b.step != null) return a.step - b.step
-    return a.createdAt - b.createdAt
-  })
+  const sorted = useMemo(
+    () =>
+      [...visuals].sort((a, b) => {
+        if (a.step != null && b.step != null) return a.step - b.step
+        return a.createdAt - b.createdAt
+      }),
+    [visuals],
+  )
 
   const hasExplanations = sorted.length > 0
-  const frameCount = (hasExplanations ? sorted.length : 1) + (isLoading && !isDone ? 1 : 0)
+  const frameCount =
+    (hasExplanations ? sorted.length : 1) + (isLoading && !isDone ? 1 : 0)
 
   const [activeIndex, setActiveIndex] = useState(0)
   const prevCountRef = useRef(0)
@@ -41,43 +45,42 @@ export function FrameContainer({
     const prevCount = prevCountRef.current
     prevCountRef.current = sorted.length
 
-    // Loading just started — remember where we were
     if (isLoading && !wasLoadingRef.current) {
       generationStartCountRef.current = prevCount
     }
     wasLoadingRef.current = isLoading
 
-    // New frame arrived during this generation — jump to it
     if (sorted.length > prevCount && sorted.length > generationStartCountRef.current) {
       setActiveIndex(sorted.length - 1)
     }
 
-    // Loading with no frames yet — show loading indicator
     if (isLoading && sorted.length === 0 && !isDone) {
       setActiveIndex(0)
     }
   }, [sorted.length, isLoading, isDone])
 
-  const goNext = useCallback(() => {
-    setActiveIndex((i) => Math.min(i + 1, frameCount - 1))
-  }, [frameCount])
+  const goNext = useCallback(
+    () => setActiveIndex((i) => Math.min(i + 1, frameCount - 1)),
+    [frameCount],
+  )
+  const goPrev = useCallback(() => setActiveIndex((i) => Math.max(i - 1, 0)), [])
 
-  const goPrev = useCallback(() => {
-    setActiveIndex((i) => Math.max(i - 1, 0))
-  }, [])
-
-  // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goNext() }
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goPrev() }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault()
+        goNext()
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        goPrev()
+      }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [goNext, goPrev])
 
-  // Wheel navigation — only switch frames on a deliberate overscroll gesture.
   useEffect(() => {
     let accumulated = 0
     let lastDir = 0
@@ -90,22 +93,19 @@ export function FrameContainer({
     const SWITCH_COOLDOWN_MS = 400
 
     const handleWheel = (e: WheelEvent) => {
-      // Ignore pinch-zoom and ⌘/ctrl-scroll zoom gestures.
       if (e.ctrlKey || e.metaKey) return
-
-      // Let interactive embeds (manim canvas, code blocks, anything opted out)
-      // handle their own wheel/zoom events.
       const target = e.target as Element | null
       if (target?.closest?.('canvas, .manim-scene, pre, [data-no-frame-scroll]')) return
 
       const container = containerRef.current
       if (!container) return
       const activeFrame = container.querySelector('.frame.active') as HTMLElement | null
-      if (!activeFrame) { e.preventDefault(); return }
+      if (!activeFrame) {
+        e.preventDefault()
+        return
+      }
 
       const now = performance.now()
-
-      // Reset accumulator on idle or direction flip.
       if (now - lastWheelAt > IDLE_RESET_MS) accumulated = 0
       const dir = Math.sign(e.deltaY)
       if (dir !== 0 && lastDir !== 0 && dir !== lastDir) accumulated = 0
@@ -117,18 +117,27 @@ export function FrameContainer({
       const atBottom = scrollTop + clientHeight >= scrollHeight - 1
       const isScrollable = scrollHeight > clientHeight + 1
 
-      // Inside in-frame scroll range — let the browser scroll normally and
-      // remember when we last did so, so the inertial tail can't bleed into
-      // a frame switch.
       if (isScrollable) {
-        if (e.deltaY > 0 && !atBottom) { lastInFrameScrollAt = now; accumulated = 0; return }
-        if (e.deltaY < 0 && !atTop) { lastInFrameScrollAt = now; accumulated = 0; return }
+        if (e.deltaY > 0 && !atBottom) {
+          lastInFrameScrollAt = now
+          accumulated = 0
+          return
+        }
+        if (e.deltaY < 0 && !atTop) {
+          lastInFrameScrollAt = now
+          accumulated = 0
+          return
+        }
       }
 
-      // At a boundary. Suppress for the inertial tail of an in-frame scroll
-      // and during the post-switch cooldown.
-      if (now - lastInFrameScrollAt < POST_INFRAME_QUIET_MS) { e.preventDefault(); return }
-      if (now < switchCooldownUntil) { e.preventDefault(); return }
+      if (now - lastInFrameScrollAt < POST_INFRAME_QUIET_MS) {
+        e.preventDefault()
+        return
+      }
+      if (now < switchCooldownUntil) {
+        e.preventDefault()
+        return
+      }
 
       e.preventDefault()
       accumulated += e.deltaY
@@ -146,18 +155,20 @@ export function FrameContainer({
     return () => window.removeEventListener('wheel', handleWheel)
   }, [goNext, goPrev])
 
-  // Build frames list
-  const frames: { key: string; content: React.ReactNode }[] = []
+  // ── Build frames ──────────────────────────────────────────────────
+  const frames: { key: string; content: React.ReactNode; aria: string }[] = []
 
   if (!hasExplanations && !isLoading) {
     frames.push({
       key: 'welcome',
+      aria: 'Welcome. Type a question to begin.',
       content: (
-        <div className="frame-content text-center space-y-4">
-          <h1 className="text-3xl font-mono font-bold text-white tracking-tight">
-            firefly
+        <div className="frame-content text-center space-y-6">
+          <p className="kicker text-crimson">firefly · visual learning</p>
+          <h1 className="display-title text-7xl md:text-8xl text-bone glitch-hover cursor-default">
+            ASK<br />SEE<br />UNDERSTAND
           </h1>
-          <p className="text-gray-500 text-sm font-mono max-w-sm mx-auto">
+          <p className="text-ash text-xs font-mono tracking-[0.18em] uppercase max-w-sm mx-auto pt-4">
             your questions, lit up inside.
           </p>
         </div>
@@ -165,65 +176,123 @@ export function FrameContainer({
     })
   }
 
-  for (const explanation of sorted) {
+  const totalExpected = sorted.length + (isLoading && !isDone ? 1 : 0)
+
+  for (let i = 0; i < sorted.length; i++) {
+    const explanation = sorted[i]
     frames.push({
       key: explanation._id,
+      aria: `Frame ${i + 1} of ${totalExpected}. ${explanation.narration ?? ''}`,
       content: (
         <div className="frame-content space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="kicker text-crimson">{explanation.skill}</div>
+            <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-ash">
+              {String(i + 1).padStart(2, '0')} / {String(totalExpected).padStart(2, '0')}
+            </div>
+          </div>
           <SkillRouter explanation={explanation} onAction={onAction} />
           {explanation.narration && (
-            <div className="glass-card px-6 py-4 mt-4">
-              <p className="text-gray-300 text-sm leading-relaxed italic">
+            <aside
+              className="border-l border-crimson/40 pl-4 pr-2 py-2 mt-4"
+              aria-label="Narration"
+            >
+              <p className="text-bone text-sm font-mono leading-relaxed">
+                <span className="text-crimson mr-2">/</span>
                 {explanation.narration}
               </p>
-            </div>
+            </aside>
           )}
         </div>
       ),
     })
   }
 
-  if (isLoading) {
+  if (isLoading && !isDone) {
     frames.push({
       key: 'loading',
+      aria: 'Generating the next frame.',
       content: (
-        <div className="frame-content text-center space-y-4">
-          <div className="loading-breathe">
-            <div className="w-12 h-12 mx-auto rounded border border-white/10 flex items-center justify-center">
-              <div className="w-4 h-4 rounded-sm bg-white/10" />
+        <div className="frame-content">
+          <div className="flex items-center justify-between mb-4">
+            <div className="kicker text-crimson">generating</div>
+            <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-ash">
+              {String(sorted.length + 1).padStart(2, '0')} / {String(totalExpected).padStart(2, '0')}
             </div>
           </div>
-          <p className="text-gray-600 text-xs font-mono">generating...</p>
+          <div
+            className="h-40 w-full rounded-sm bg-white/[0.02] border border-white/5 grid place-items-center"
+          >
+            <div className="space-y-3 text-center">
+              <div className="relative w-2 h-2 mx-auto">
+                <div className="absolute inset-0 rounded-full bg-crimson pulse-crimson" />
+              </div>
+              <p className="font-mono text-[10px] tracking-[0.32em] uppercase text-ash loading-breathe">
+                thinking
+              </p>
+            </div>
+          </div>
         </div>
       ),
     })
   }
 
-  return (
-    <div ref={containerRef} className="frame-container">
-      {frames.map((frame, i) => (
-        <div
-          key={frame.key}
-          className={`frame ${i === activeIndex ? 'active' : ''}`}
-        >
-          {frame.content}
-        </div>
-      ))}
+  // Clamp activeIndex if the count shrinks
+  const safeActive = Math.min(activeIndex, Math.max(0, frames.length - 1))
 
-      {/* Frame indicator dots */}
+  return (
+    <div
+      ref={containerRef}
+      className="frame-container"
+      role="region"
+      aria-label="Visual explanation frames"
+    >
+      {/* SR-only live region announces active frame */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {frames[safeActive]?.aria ?? ''}
+      </div>
+
+      {frames.map((frame, i) => {
+        const active = i === safeActive
+        return (
+          <div
+            key={frame.key}
+            className={`frame ${active ? 'active' : ''}`}
+            aria-hidden={!active}
+            // Huge perf win: off-screen frames skip rendering entirely.
+            style={{ contentVisibility: active ? 'visible' : 'hidden' }}
+          >
+            {frame.content}
+          </div>
+        )
+      })}
+
+      {/* Frame indicator rail */}
       {frames.length > 1 && (
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2">
-          {frames.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveIndex(i)}
-              className={`rounded-full transition-all ${
-                i === activeIndex
-                  ? 'w-5 h-1.5 bg-white'
-                  : 'w-1.5 h-1.5 bg-white/20 hover:bg-white/40'
-              }`}
-            />
-          ))}
+        <div
+          className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5"
+          role="tablist"
+          aria-label="Frame navigation"
+        >
+          {frames.map((_, i) => {
+            const active = i === safeActive
+            return (
+              <button
+                key={i}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                aria-label={`Frame ${i + 1}`}
+                onClick={() => setActiveIndex(i)}
+                className="group h-1 transition-all"
+                style={{
+                  width: active ? '28px' : '8px',
+                  background: active ? 'var(--crimson)' : 'rgba(232,228,221,0.15)',
+                  boxShadow: active ? '0 0 14px rgba(214,0,23,0.5)' : 'none',
+                }}
+              />
+            )
+          })}
         </div>
       )}
     </div>

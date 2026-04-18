@@ -7,6 +7,29 @@ import {
   type Scene, type Mobject,
 } from 'manim-web'
 
+/**
+ * Compile an agent-supplied math expression into a pure function of x.
+ * Whitelists characters to block code injection via the Function constructor:
+ * only digits, basic operators, decimal points, parens, whitespace,
+ * the variable `x`, and the `Math.*` namespace are allowed.
+ */
+function compileSafeMathFn(src: unknown): (x: number) => number {
+  const expr = String(src ?? '').trim()
+  // Allowed: digits, . + - * / % ^ ( ) , whitespace, x, Math, and Math's members
+  const allowed = /^[\s\d+\-*/%^(),.xX]|Math\.(abs|acos|acosh|asin|asinh|atan|atanh|atan2|cbrt|ceil|cos|cosh|exp|expm1|floor|hypot|log|log1p|log10|log2|max|min|pow|round|sign|sin|sinh|sqrt|tan|tanh|trunc|E|PI|LN2|LN10|LOG2E|LOG10E|SQRT2|SQRT1_2)/
+  // Simpler and stricter: strip all Math.X references, then ensure remaining is in the safe alphabet.
+  const stripped = expr.replace(
+    /Math\.(?:abs|acos|acosh|asin|asinh|atan|atanh|atan2|cbrt|ceil|cos|cosh|exp|expm1|floor|hypot|log|log1p|log10|log2|max|min|pow|round|sign|sin|sinh|sqrt|tan|tanh|trunc|E|PI|LN2|LN10|LOG2E|LOG10E|SQRT2|SQRT1_2)\b/g,
+    '',
+  )
+  if (!/^[\s\d+\-*/%^(),.xX]*$/.test(stripped)) {
+    throw new Error(`Rejected unsafe expression: ${expr}`)
+  }
+  void allowed // ESLint: retained for future extension
+  // eslint-disable-next-line no-new-func
+  return new Function('x', `"use strict"; return (${expr});`) as (x: number) => number
+}
+
 // ─── Config Types (matches skills/visual/manim/SKILL.md) ───
 
 interface SceneConfig {
@@ -41,7 +64,7 @@ function createObject(def: ObjectDef): Mobject | null {
     switch (def.type) {
       case 'function_graph':
         return new FunctionGraph({
-          func: new Function('x', `return ${def.fn}`) as (x: number) => number,
+          func: compileSafeMathFn(def.fn),
           xRange: def.xRange ?? [-5, 5],
           color: def.color ?? '#3b82f6',
           numSamples: def.numSamples ?? 200,

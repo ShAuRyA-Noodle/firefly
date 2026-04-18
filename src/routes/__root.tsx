@@ -1,6 +1,7 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 
 import ConvexProvider from '../integrations/convex/provider'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 
 import appCss from '../styles.css?url'
 
@@ -26,7 +27,27 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="font-sans antialiased">
-        <ConvexProvider>{children}</ConvexProvider>
+        <ErrorBoundary
+          label="root"
+          fallback={(err, reset) => (
+            <div className="min-h-screen flex items-center justify-center px-6">
+              <div className="max-w-md w-full space-y-5 text-center">
+                <p className="kicker text-crimson">fatal</p>
+                <h1 className="display-title text-5xl text-bone">
+                  SOMETHING<br />BROKE
+                </h1>
+                <p className="text-ash text-xs font-mono tracking-wide">
+                  {err.message}
+                </p>
+                <button type="button" onClick={reset} className="btn-crimson">
+                  reload
+                </button>
+              </div>
+            </div>
+          )}
+        >
+          <ConvexProvider>{children}</ConvexProvider>
+        </ErrorBoundary>
         <Scripts />
       </body>
     </html>
