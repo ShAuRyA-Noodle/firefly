@@ -126,7 +126,15 @@ SARVAM_API_KEY=sk_...
 SARVAM_TTS_MODEL=bulbul:v2
 SARVAM_VOICE=anushka
 SARVAM_LANGUAGE=en-IN
+# Shared secret that authorizes the skills sync mutations.
+# Generate a strong random value, for example: openssl rand -hex 32
+SKILLS_SYNC_SECRET=<random-secret>
 ```
+
+The skills sync mutations are public functions (the deployment URL ships in
+the client bundle), so they require `SKILLS_SYNC_SECRET`. Set it in the Convex
+deployment environment with `bunx convex env set SKILLS_SYNC_SECRET <value>`
+and provide the same value to the sync script (see below).
 
 The frontend needs one public variable in `.env.local`:
 
@@ -148,10 +156,11 @@ bunx convex dev
 bun run dev
 ```
 
-Sync visual skills to the database:
+Sync visual skills to the database (requires `SKILLS_SYNC_SECRET`, matching the
+value set in the Convex deployment environment):
 
 ```bash
-bun run skills:sync
+SKILLS_SYNC_SECRET=<value> bun run skills:sync
 ```
 
 ---

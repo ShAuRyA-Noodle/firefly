@@ -24,6 +24,14 @@ if (!convexUrl) {
   process.exit(1);
 }
 
+// Shared secret that authorizes the sync mutations. Must match the
+// SKILLS_SYNC_SECRET configured in the Convex deployment environment.
+if (!process.env.SKILLS_SYNC_SECRET) {
+  console.error("Error: SKILLS_SYNC_SECRET not set");
+  process.exit(1);
+}
+const syncSecret: string = process.env.SKILLS_SYNC_SECRET;
+
 const client = new ConvexHttpClient(convexUrl);
 
 interface SkillMeta {
@@ -183,11 +191,13 @@ async function syncSkills() {
 
     if (!existing) {
       console.log(`  [CREATE] ${skill.name}`);
-      if (!isDryRun) await client.mutation(api.skills.upsert, skill);
+      if (!isDryRun)
+        await client.mutation(api.skills.upsert, { ...skill, secret: syncSecret });
       created++;
     } else if (existing.contentHash !== skill.contentHash) {
       console.log(`  [UPDATE] ${skill.name}`);
-      if (!isDryRun) await client.mutation(api.skills.upsert, skill);
+      if (!isDryRun)
+        await client.mutation(api.skills.upsert, { ...skill, secret: syncSecret });
       updated++;
     } else {
       console.log(`  [SKIP] ${skill.name}`);
@@ -199,7 +209,8 @@ async function syncSkills() {
   // Delete removed skills
   for (const [name] of dbSkillsByName) {
     console.log(`  [DELETE] ${name}`);
-    if (!isDryRun) await client.mutation(api.skills.deleteByName, { name });
+    if (!isDryRun)
+      await client.mutation(api.skills.deleteByName, { name, secret: syncSecret });
   }
 
   // Sync files
@@ -210,10 +221,12 @@ async function syncSkills() {
 
     if (!existing) {
       console.log(`  [CREATE] ${key}`);
-      if (!isDryRun) await client.mutation(api.skills.upsertFile, file);
+      if (!isDryRun)
+        await client.mutation(api.skills.upsertFile, { ...file, secret: syncSecret });
     } else if (existing.contentHash !== file.contentHash) {
       console.log(`  [UPDATE] ${key}`);
-      if (!isDryRun) await client.mutation(api.skills.upsertFile, file);
+      if (!isDryRun)
+        await client.mutation(api.skills.upsertFile, { ...file, secret: syncSecret });
     } else {
       console.log(`  [SKIP] ${key}`);
     }
@@ -226,6 +239,7 @@ async function syncSkills() {
       await client.mutation(api.skills.deleteFile, {
         skillName: file.skillName,
         path: file.path,
+        secret: syncSecret,
       });
   }
 
