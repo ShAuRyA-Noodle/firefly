@@ -76,4 +76,19 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     rate: 100,
     period: DAY,
   },
+  // DEPLOYMENT-WIDE question ceiling. Every other limit here is keyed per
+  // user, which bounds nothing when accounts are free and disposable: the
+  // anonymous gate allows 100 signups/hour and each fresh account gets its own
+  // 100/day budget, so a script could drive ~10k questions/day — roughly 100k
+  // LLM calls — against a personal API budget. This is the only limit that
+  // caps TOTAL spend regardless of how many accounts exist. Called with
+  // key: "global" from every question entrypoint.
+  //
+  // 400/day ≈ $0.80/day at the current ~$0.002/question. Raise it once the
+  // spend is backed by something bigger than a personal card.
+  globalDailyQuestions: {
+    kind: "fixed window",
+    rate: 400,
+    period: DAY,
+  },
 });

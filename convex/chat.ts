@@ -83,6 +83,13 @@ export const sendMessage = authedAction({
   handler: async (ctx, { threadId, prompt }) => {
     await rateLimiter.limit(ctx, "sendQuestion", { key: ctx.userId, throws: true });
     await rateLimiter.limit(ctx, "dailyQuestions", { key: ctx.userId, throws: true });
+    // Deployment-wide ceiling. Every other limit is keyed per user, which
+    // bounds nothing when accounts are free and disposable — this is the only
+    // guard on TOTAL API spend across all users.
+    await rateLimiter.limit(ctx, "globalDailyQuestions", {
+      key: "global",
+      throws: true,
+    });
     await assertThreadOwner(ctx, threadId, ctx.userId);
 
     // Pre-filter prompt — Llama-Guard via Groq, keyword fallback if model
@@ -169,6 +176,13 @@ export const sendImageMessage = authedAction({
     // both per-hour and per-day limiters apply identically.
     await rateLimiter.limit(ctx, "sendQuestion", { key: ctx.userId, throws: true });
     await rateLimiter.limit(ctx, "dailyQuestions", { key: ctx.userId, throws: true });
+    // Deployment-wide ceiling. Every other limit is keyed per user, which
+    // bounds nothing when accounts are free and disposable — this is the only
+    // guard on TOTAL API spend across all users.
+    await rateLimiter.limit(ctx, "globalDailyQuestions", {
+      key: "global",
+      throws: true,
+    });
     await assertThreadOwner(ctx, threadId, ctx.userId);
 
     // Vision OCR + moderation pre-filter happen inside extractQuestion so
@@ -252,6 +266,13 @@ export const sendMessageStreaming = authedAction({
   handler: async (ctx, { threadId, prompt }) => {
     await rateLimiter.limit(ctx, "sendQuestion", { key: ctx.userId, throws: true });
     await rateLimiter.limit(ctx, "dailyQuestions", { key: ctx.userId, throws: true });
+    // Deployment-wide ceiling. Every other limit is keyed per user, which
+    // bounds nothing when accounts are free and disposable — this is the only
+    // guard on TOTAL API spend across all users.
+    await rateLimiter.limit(ctx, "globalDailyQuestions", {
+      key: "global",
+      throws: true,
+    });
     await assertThreadOwner(ctx, threadId, ctx.userId);
 
     // Pre-filter — Llama-Guard via Groq with keyword fallback. Throws on
