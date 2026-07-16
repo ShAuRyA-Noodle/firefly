@@ -145,9 +145,14 @@
 html,
 body,
 #app {
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
   background: var(--void);
+  /* NO global `overflow: hidden` here. It killed scrolling on every ordinary
+     route — /me (learning), /settings, /share, /legal — where content is
+     taller than the viewport. The immersive app shell doesn't need it either:
+     `.canvas` is position:fixed + inset:0 + overflow:hidden, so it locks
+     itself. Scoping the lock to the shell fixes the dead pages without
+     touching the frame carousel. */
 }
 
 /* Fluid root size — the whole UI is rem-based, so scaling the root scales
