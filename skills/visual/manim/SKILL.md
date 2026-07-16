@@ -1,12 +1,22 @@
 ---
 name: visual/manim
-description: 3Blue1Brown-style mathematical animations using manim-web (TypeScript). Renders real-time in browser via Canvas/WebGL.
+description: Use when explaining derivatives, integrals, linear algebra, geometry, proofs, or step-by-step math derivations. Best for anything numeric where the math itself is the visual.
 domains: ["math", "physics", "geometry", "calculus", "linear-algebra"]
 ---
 
 # Manim Skill — Mathematical Animations
 
 Generate manim-web scene configurations that render as 3Blue1Brown-style animations in the browser.
+
+## Structured plan (prelude — fill out before writing config)
+
+Before producing the config, mentally answer:
+1. What single mathematical claim is this frame proving or showing?
+2. Which 2-3 mobjects carry that claim (a curve + tangent + label, or axes + region + integral)?
+3. What is the narrative arc: setup → reveal → emphasis?
+4. What plain-English sentence will appear in `narrativeSummary` (1-2 sentences, ≤400 chars, what the viewer learns)?
+
+Then write the config. The structured plan is not output — it is the discipline that prevents over-stuffed scenes.
 
 ## Output Format
 
@@ -96,3 +106,7 @@ Call `renderVisual` with skill "manim" and config as a JSON string:
 10. **One large formula at a time.** Never have two large `latex` objects visible simultaneously. Before showing a new formula, `fadeOut` the previous one.
 11. **Don't mix dense annotations with a large formula.** If a scene has many point/coordinate labels (e.g. `x1`, `x2`, `+1`, `-1`), it should not also display a large formula in the same step — they compete for space. Sequence them: show the labeled scene, fade the labels out, then introduce the formula.
 12. **Mobject budget.** Aim for ≤ 6 simultaneously-visible mobjects per scene step. If you need more, sequence them with `fadeIn` / `fadeOut` rather than stacking.
+
+## Optional: `narrativeSummary`
+
+You MAY include a top-level `narrativeSummary` field — a 1-2 sentence plain-English description of what this frame conveys (≤400 chars). Example: `"narrativeSummary": "Shows that the derivative of x² at x=1 equals 2 by zooming the secant line into the tangent."`. The TTS pipeline does not use it; it is a readable hedge for downstream search, share-page text mode, and future RAG. Including it costs nothing and helps every reader downstream.

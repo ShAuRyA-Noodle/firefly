@@ -7,6 +7,10 @@ type Explanation = {
   config: string
   narration?: string
   step?: number
+  // Question ordinal within the thread. A thread accrues one turn per
+  // question (original + every ActionCard follow-up); frames render in
+  // append order (turnIndex, then step). Absent on pre-turns rows → 0.
+  turnIndex?: number
   createdAt: number
 }
 
@@ -14,17 +18,32 @@ export function FrameContainer({
   explanations,
   isLoading,
   onAction,
+  onBranch,
 }: {
   explanations: Explanation[]
   isLoading: boolean
   onAction?: (prompt: string) => void
+  onBranch?: (frameId: string) => void | Promise<void>
 }) {
-  const isDone = explanations.some((e) => e.skill === '_done')
+  // "Done" tracks the LATEST question only — a thread can hold many settled
+  // turns while a fresh follow-up is still generating, and the loading
+  // placeholder must show for that new turn even though earlier turns closed.
+  const maxTurn = explanations.reduce(
+    (m, e) => Math.max(m, e.turnIndex ?? 0),
+    0,
+  )
+  const isDone = explanations.some(
+    (e) => e.skill === '_done' && (e.turnIndex ?? 0) === maxTurn,
+  )
   const visuals = explanations.filter((e) => e.skill !== '_done' && e.skill !== 'intro')
 
   const sorted = useMemo(
     () =>
       [...visuals].sort((a, b) => {
+        // Questions in ask-order, frames within a question in narrative order.
+        const ta = a.turnIndex ?? 0
+        const tb = b.turnIndex ?? 0
+        if (ta !== tb) return ta - tb
         if (a.step != null && b.step != null) return a.step - b.step
         return a.createdAt - b.createdAt
       }),
@@ -155,6 +174,64 @@ export function FrameContainer({
     return () => window.removeEventListener('wheel', handleWheel)
   }, [goNext, goPrev])
 
+  // Touch swipe — horizontal gesture only, with a noise floor on the vertical
+  // axis so vertical scrolls inside a frame (manim, code blocks, narration)
+  // don't steal the gesture. Threshold is generous (60px) so accidental
+  // sub-thumb wiggles don't trigger frame changes.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const SWIPE_THRESHOLD = 60
+    const VERTICAL_TOLERANCE = 40
+    let startX = 0
+    let startY = 0
+    let tracking = false
+
+    const onStart = (e: TouchEvent) => {
+      const target = e.target as Element | null
+      // Don't hijack swipes that started inside scrollable subtrees — those
+      // gestures belong to the inner content (canvas, code, manim).
+      if (
+        target?.closest?.(
+          'canvas, .manim-scene, pre, [data-no-frame-scroll], input, textarea, [contenteditable="true"]',
+        )
+      ) {
+        tracking = false
+        return
+      }
+      const t = e.touches[0]
+      if (!t) return
+      startX = t.clientX
+      startY = t.clientY
+      tracking = true
+    }
+    const onEnd = (e: TouchEvent) => {
+      if (!tracking) return
+      tracking = false
+      const t = e.changedTouches[0]
+      if (!t) return
+      const dx = t.clientX - startX
+      const dy = t.clientY - startY
+      // Reject mostly-vertical gestures even if dx clears the threshold —
+      // those are scroll intents that grazed sideways.
+      if (Math.abs(dy) > Math.abs(dx) + VERTICAL_TOLERANCE) return
+      if (dx <= -SWIPE_THRESHOLD) goNext()
+      else if (dx >= SWIPE_THRESHOLD) goPrev()
+    }
+    const onCancel = () => {
+      tracking = false
+    }
+
+    container.addEventListener('touchstart', onStart, { passive: true })
+    container.addEventListener('touchend', onEnd, { passive: true })
+    container.addEventListener('touchcancel', onCancel, { passive: true })
+    return () => {
+      container.removeEventListener('touchstart', onStart)
+      container.removeEventListener('touchend', onEnd)
+      container.removeEventListener('touchcancel', onCancel)
+    }
+  }, [goNext, goPrev])
+
   // ── Build frames ──────────────────────────────────────────────────
   const frames: { key: string; content: React.ReactNode; aria: string }[] = []
 
@@ -187,14 +264,28 @@ export function FrameContainer({
         <div className="frame-content space-y-6">
           <div className="flex items-center justify-between">
             <div className="kicker text-crimson">{explanation.skill}</div>
-            <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-ash">
-              {String(i + 1).padStart(2, '0')} / {String(totalExpected).padStart(2, '0')}
+            <div className="flex items-center gap-3">
+              {onBranch && (
+                <button
+                  type="button"
+                  onClick={() => void onBranch(explanation._id)}
+                  className="text-[10px] uppercase tracking-[0.22em] text-ash hover:text-crimson transition font-mono"
+                  title="Ask a follow-up based on this frame"
+                >
+                  branch ↗
+                </button>
+              )}
+              <div className="font-mono text-[10px] tracking-[0.24em] uppercase text-ash">
+                {String(i + 1).padStart(2, '0')} / {String(totalExpected).padStart(2, '0')}
+              </div>
             </div>
           </div>
           <SkillRouter explanation={explanation} onAction={onAction} />
           {explanation.narration && (
             <aside
-              className="border-l border-crimson/40 pl-4 pr-2 py-2 mt-4"
+              // Prose keeps a readable measure even though the frame itself is
+              // now viewport-wide — long mono lines across 1440px are painful.
+              className="border-l border-crimson/40 pl-4 pr-2 py-2 mt-4 max-w-[78ch]"
               aria-label="Narration"
             >
               <p className="text-bone text-sm font-mono leading-relaxed">
@@ -258,7 +349,15 @@ export function FrameContainer({
           <div
             key={frame.key}
             className={`frame ${active ? 'active' : ''}`}
+            role="tabpanel"
+            id={`frame-panel-${i}`}
+            aria-labelledby={`frame-tab-${i}`}
             aria-hidden={!active}
+            // `inert` blocks focus + pointer + tab into hidden frames so
+            // SR users and tab-cyclers can't accidentally land in a frame
+            // they can't see. React 19 + @types/react 19 type this as a
+            // boolean attribute.
+            inert={!active}
             // Huge perf win: off-screen frames skip rendering entirely.
             style={{ contentVisibility: active ? 'visible' : 'hidden' }}
           >
@@ -267,7 +366,10 @@ export function FrameContainer({
         )
       })}
 
-      {/* Frame indicator rail */}
+      {/* Frame indicator rail. Buttons are at least 44px tall so finger
+          taps land cleanly on mobile (Apple HIG / Material guidance);
+          the visible bar inside is the same width as before so the
+          desktop look is unchanged. */}
       {frames.length > 1 && (
         <div
           className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5"
@@ -281,16 +383,29 @@ export function FrameContainer({
                 key={i}
                 type="button"
                 role="tab"
+                id={`frame-tab-${i}`}
                 aria-selected={active}
+                aria-controls={`frame-panel-${i}`}
                 aria-label={`Frame ${i + 1}`}
                 onClick={() => setActiveIndex(i)}
-                className="group h-1 transition-all"
+                className="group flex items-center justify-center bg-transparent border-0"
                 style={{
-                  width: active ? '28px' : '8px',
-                  background: active ? 'var(--crimson)' : 'rgba(232,228,221,0.15)',
-                  boxShadow: active ? '0 0 14px rgba(214,0,23,0.5)' : 'none',
+                  // ≥44px tall via padding; horizontal padding keeps the
+                  // hit area between dots without adding visible spacing.
+                  padding: '12px 4px',
+                  minHeight: '44px',
                 }}
-              />
+              >
+                <span
+                  aria-hidden="true"
+                  className="block h-1 transition-all rounded"
+                  style={{
+                    width: active ? '28px' : '8px',
+                    background: active ? 'var(--crimson)' : 'rgba(232,228,221,0.15)',
+                    boxShadow: active ? '0 0 14px rgba(214,0,23,0.5)' : 'none',
+                  }}
+                />
+              </button>
             )
           })}
         </div>

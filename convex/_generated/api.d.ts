@@ -10,14 +10,37 @@
 
 import type * as agent from "../agent.js";
 import type * as auth from "../auth.js";
+import type * as authResend from "../authResend.js";
+import type * as cache from "../cache.js";
 import type * as chat from "../chat.js";
+import type * as critic from "../critic.js";
+import type * as crons from "../crons.js";
 import type * as explanations from "../explanations.js";
 import type * as http from "../http.js";
+import type * as lib_breaker from "../lib/breaker.js";
+import type * as lib_env from "../lib/env.js";
+import type * as lib_functions from "../lib/functions.js";
+import type * as lib_log from "../lib/log.js";
+import type * as lib_models from "../lib/models.js";
+import type * as lib_skillSchemas from "../lib/skillSchemas.js";
+import type * as memories from "../memories.js";
+import type * as memoryExtract from "../memoryExtract.js";
+import type * as moderation from "../moderation.js";
+import type * as presence from "../presence.js";
+import type * as quiz from "../quiz.js";
 import type * as rateLimiter from "../rateLimiter.js";
+import type * as share from "../share.js";
+import type * as skillProgress from "../skillProgress.js";
 import type * as skills from "../skills.js";
+import type * as threadActions from "../threadActions.js";
 import type * as threads from "../threads.js";
 import type * as tts from "../tts.js";
 import type * as ttsProviders from "../ttsProviders.js";
+import type * as turns from "../turns.js";
+import type * as usage from "../usage.js";
+import type * as userPreferences from "../userPreferences.js";
+import type * as users from "../users.js";
+import type * as vision from "../vision.js";
 
 import type {
   ApiFromModules,
@@ -28,14 +51,37 @@ import type {
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
   auth: typeof auth;
+  authResend: typeof authResend;
+  cache: typeof cache;
   chat: typeof chat;
+  critic: typeof critic;
+  crons: typeof crons;
   explanations: typeof explanations;
   http: typeof http;
+  "lib/breaker": typeof lib_breaker;
+  "lib/env": typeof lib_env;
+  "lib/functions": typeof lib_functions;
+  "lib/log": typeof lib_log;
+  "lib/models": typeof lib_models;
+  "lib/skillSchemas": typeof lib_skillSchemas;
+  memories: typeof memories;
+  memoryExtract: typeof memoryExtract;
+  moderation: typeof moderation;
+  presence: typeof presence;
+  quiz: typeof quiz;
   rateLimiter: typeof rateLimiter;
+  share: typeof share;
+  skillProgress: typeof skillProgress;
   skills: typeof skills;
+  threadActions: typeof threadActions;
   threads: typeof threads;
   tts: typeof tts;
   ttsProviders: typeof ttsProviders;
+  turns: typeof turns;
+  usage: typeof usage;
+  userPreferences: typeof userPreferences;
+  users: typeof users;
+  vision: typeof vision;
 }>;
 
 /**
@@ -5028,6 +5074,110 @@ export declare const components: {
     };
     time: {
       getServerTime: FunctionReference<"mutation", "internal", {}, number>;
+    };
+  };
+  actionCache: {
+    crons: {
+      purge: FunctionReference<
+        "mutation",
+        "internal",
+        { expiresAt?: number },
+        null
+      >;
+    };
+    lib: {
+      get: FunctionReference<
+        "query",
+        "internal",
+        { args: any; name: string; ttl: number | null },
+        { kind: "hit"; value: any } | { expiredEntry?: string; kind: "miss" }
+      >;
+      put: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          args: any;
+          expiredEntry?: string;
+          name: string;
+          ttl: number | null;
+          value: any;
+        },
+        { cacheHit: boolean; deletedExpiredEntry: boolean }
+      >;
+      remove: FunctionReference<
+        "mutation",
+        "internal",
+        { args: any; name: string },
+        null
+      >;
+      removeAll: FunctionReference<
+        "mutation",
+        "internal",
+        { batchSize?: number; before?: number; name?: string },
+        null
+      >;
+    };
+  };
+  presence: {
+    public: {
+      disconnect: FunctionReference<
+        "mutation",
+        "internal",
+        { scheduled?: boolean; sessionToken: string },
+        null
+      >;
+      heartbeat: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          interval?: number;
+          roomId: string;
+          sessionId: string;
+          userId: string;
+        },
+        { roomToken: string; sessionToken: string }
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        { limit?: number; roomToken: string },
+        Array<{
+          data?: any;
+          lastDisconnected: number;
+          online: boolean;
+          userId: string;
+        }>
+      >;
+      listRoom: FunctionReference<
+        "query",
+        "internal",
+        { limit?: number; onlineOnly?: boolean; roomId: string },
+        Array<{ lastDisconnected: number; online: boolean; userId: string }>
+      >;
+      listUser: FunctionReference<
+        "query",
+        "internal",
+        { limit?: number; onlineOnly?: boolean; userId: string },
+        Array<{ lastDisconnected: number; online: boolean; roomId: string }>
+      >;
+      removeRoom: FunctionReference<
+        "mutation",
+        "internal",
+        { roomId: string },
+        null
+      >;
+      removeRoomUser: FunctionReference<
+        "mutation",
+        "internal",
+        { roomId: string; userId: string },
+        null
+      >;
+      updateRoomUser: FunctionReference<
+        "mutation",
+        "internal",
+        { data?: any; roomId: string; userId: string },
+        null
+      >;
     };
   };
 };

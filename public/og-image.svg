@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-labelledby="title desc">
+  <title id="title">Firefly — your questions, lit up inside.</title>
+  <desc id="desc">FIREFLY display title in bone on void background, crimson mark, with subtitle: your questions, lit up inside.</desc>
+
+  <defs>
+    <!-- Subtle vertical gradient mirrors the in-app canvas treatment -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0C0908"/>
+      <stop offset="60%" stop-color="#0A0808"/>
+      <stop offset="100%" stop-color="#050404"/>
+    </linearGradient>
+
+    <!-- Crimson glow used on the mark + a couple of accent dots -->
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FF2A2A" stop-opacity="0.85"/>
+      <stop offset="50%" stop-color="#D60017" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#D60017" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Faint scanline overlay — light enough that crawlers compress fine -->
+    <pattern id="scanlines" width="3" height="3" patternUnits="userSpaceOnUse">
+      <rect width="3" height="3" fill="transparent"/>
+      <rect width="3" height="1" y="0" fill="#FFFFFF" fill-opacity="0.015"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1200" height="630" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="630" fill="url(#scanlines)"/>
+
+  <!-- Frame border, in-app crimson at low alpha -->
+  <rect x="32" y="32" width="1136" height="566" fill="none" stroke="#D60017" stroke-opacity="0.18" stroke-width="1"/>
+
+  <!-- Top kicker: crimson uppercase mono, mirrors .kicker style -->
+  <g font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="14" letter-spacing="6">
+    <text x="80" y="100" fill="#D60017" font-weight="500">FIREFLY · VISUAL LEARNING</text>
+  </g>
+
+  <!-- Crimson glow disc behind the mark -->
+  <circle cx="200" cy="315" r="180" fill="url(#glow)"/>
+
+  <!-- Firefly mark: stylized spark / dot motif -->
+  <g transform="translate(140 255)">
+    <!-- Outer ring -->
+    <circle cx="60" cy="60" r="58" fill="none" stroke="#D60017" stroke-opacity="0.55" stroke-width="2"/>
+    <!-- Center burst -->
+    <circle cx="60" cy="60" r="14" fill="#FF2A2A"/>
+    <circle cx="60" cy="60" r="22" fill="none" stroke="#FF2A2A" stroke-opacity="0.55" stroke-width="1.5"/>
+    <!-- Cross hairs to evoke the in-app "frame" cursor -->
+    <line x1="60" y1="0" x2="60" y2="22" stroke="#D60017" stroke-width="1.5"/>
+    <line x1="60" y1="98" x2="60" y2="120" stroke="#D60017" stroke-width="1.5"/>
+    <line x1="0" y1="60" x2="22" y2="60" stroke="#D60017" stroke-width="1.5"/>
+    <line x1="98" y1="60" x2="120" y2="60" stroke="#D60017" stroke-width="1.5"/>
+  </g>
+
+  <!-- Display title: FIREFLY, big shoulders / extrabold spirit -->
+  <g font-family="'Big Shoulders Display', 'Space Grotesk', Impact, sans-serif" font-weight="900">
+    <text x="380" y="340" font-size="220" fill="#E8E4DD" letter-spacing="-4">FIREFLY</text>
+  </g>
+
+  <!-- Subtitle: bone mono, low-alpha tracking matches in-app pattern -->
+  <g font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="22" letter-spacing="3">
+    <text x="380" y="395" fill="#9CA0A4">your questions, lit up inside.</text>
+  </g>
+
+  <!-- Bottom rail: ASK · SEE · UNDERSTAND -->
+  <g font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="16" letter-spacing="6">
+    <text x="80" y="555" fill="#5F6469">ASK</text>
+    <text x="180" y="555" fill="#D60017">·</text>
+    <text x="220" y="555" fill="#5F6469">SEE</text>
+    <text x="320" y="555" fill="#D60017">·</text>
+    <text x="360" y="555" fill="#5F6469">UNDERSTAND</text>
+  </g>
+
+  <!-- URL anchor on the right -->
+  <g font-family="'JetBrains Mono', ui-monospace, Menlo, monospace" font-size="14" letter-spacing="4" text-anchor="end">
+    <text x="1120" y="555" fill="#5F6469">FIREFLY.APP</text>
+  </g>
+
+  <!-- Three accent dots — subtle nod to particle system / multi-frame nav -->
+  <g>
+    <circle cx="1080" cy="100" r="3" fill="#D60017" opacity="0.85"/>
+    <circle cx="1100" cy="100" r="3" fill="#D60017" opacity="0.5"/>
+    <circle cx="1120" cy="100" r="3" fill="#D60017" opacity="0.25"/>
+  </g>
+</svg>

@@ -22,29 +22,50 @@ function applyDefaults(config: Partial<ParticlesConfig>): ParticlesConfig {
   }
 }
 
+// Device capability probe (browser-only; SSR-safe). Coarse pointers (phones/
+// tablets) run the CPU integration + per-particle color recompute on weaker
+// silicon, so we cut the particle budget and the DPR ceiling there. Reduced-
+// motion users get no auto-rotate.
+function deviceProfile() {
+  if (typeof window === 'undefined' || !window.matchMedia) {
+    return { coarse: false, reducedMotion: false }
+  }
+  return {
+    coarse: window.matchMedia('(pointer: coarse)').matches,
+    reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  }
+}
+
 export function ParticlesRenderer({ config }: { config: Partial<ParticlesConfig> }) {
   const safeConfig = applyDefaults(config)
+  const { coarse, reducedMotion } = deviceProfile()
+
+  // Cap the particle count on mobile so the per-frame integration stays within
+  // budget — 1200 reads as "a lot" while staying smooth on a phone GPU/CPU.
+  const budgetedConfig = coarse
+    ? { ...safeConfig, particleCount: Math.min(safeConfig.particleCount, 1200) }
+    : safeConfig
 
   return (
     <div className="glass-card overflow-hidden rounded-2xl" style={{ aspectRatio: '16 / 9' }}>
       <Canvas
-        gl={{ antialias: true, alpha: true }}
+        gl={{ antialias: !coarse, alpha: true }}
         style={{ background: 'transparent' }}
-        dpr={[1, 2]}
+        dpr={coarse ? [1, 1.5] : [1, 2]}
       >
         <PerspectiveCamera
           makeDefault
-          position={safeConfig.camera.position}
+          position={budgetedConfig.camera.position}
           fov={50}
         />
         <OrbitControls
-          target={safeConfig.camera.lookAt}
+          target={budgetedConfig.camera.lookAt}
           enableZoom
           enablePan={false}
-          autoRotate
+          autoRotate={!reducedMotion}
           autoRotateSpeed={0.5}
         />
-        <ParticleSystem config={safeConfig} />
+        <ParticleSystem config={budgetedConfig} />
       </Canvas>
     </div>
   )

@@ -36,9 +36,29 @@ function Body({ skill }: { skill: string }) {
       return <ParticlesSkeleton />
     case 'ui':
       return <UISkeleton />
+    case 'code':
+      return <CodeSkeleton />
     default:
       return <GenericSkeleton />
   }
+}
+
+function CodeSkeleton() {
+  return (
+    <div className="rounded-sm overflow-hidden border border-white/5 p-4 space-y-2 bg-white/[0.02]">
+      {[40, 70, 30, 55, 65, 25, 80].map((w, i) => (
+        <div key={i} className="flex items-center gap-3">
+          <span className="text-[10px] font-mono text-smoke w-4 text-right">
+            {i + 1}
+          </span>
+          <div
+            className="h-3 rounded bg-white/[0.06] loading-breathe"
+            style={{ width: `${w}%`, animationDelay: `${i * 60}ms` }}
+          />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function ManimSkeleton() {

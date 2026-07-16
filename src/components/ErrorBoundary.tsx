@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { reportError } from '#/lib/observability'
 
 interface Props {
   children: ReactNode
@@ -24,7 +25,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(`[ErrorBoundary${this.props.label ? ' ' + this.props.label : ''}]`, error, info)
+    const label = this.props.label ?? 'unknown'
+    console.error(`[ErrorBoundary ${label}]`, error, info)
+    reportError(error, { boundary: label, componentStack: info.componentStack })
     this.props.onError?.(error, info)
   }
 

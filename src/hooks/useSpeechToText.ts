@@ -16,6 +16,20 @@ export function useSpeechToText() {
   const startListening = useCallback(() => {
     if (!SpeechRecognition) return
 
+    // If a recognition session is already in flight (user double-clicked the
+    // mic, or startListening fired twice), abort it before constructing a
+    // new instance. Without this, the browser leaks the previous session
+    // and we end up with two engines fighting over the microphone.
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort()
+      } catch {
+        // abort() can throw if the recognizer was already torn down; safe
+        // to ignore — we're about to drop the reference anyway.
+      }
+      recognitionRef.current = null
+    }
+
     const recognition = new SpeechRecognition()
     recognition.continuous = false
     recognition.interimResults = true

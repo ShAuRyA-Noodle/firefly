@@ -12,3 +12,6 @@ dist-ssr
 __unconfig*
 todos.json
 .vercel
+
+# Local secrets scratch (never commit)
+Text.txt

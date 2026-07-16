@@ -58,7 +58,7 @@ function applyNoise(
   time: number,
 ): [number, number, number] {
   const sc = force.scale
-  const sp = force.speed * time
+  const sp = (force.speed ?? 1) * time
   const s = force.strength
   return [
     sampleNoise(px * sc + sp, py * sc, pz * sc) * s,
