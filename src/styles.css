@@ -18,7 +18,11 @@
   --obsidian: #141210;
   --iron: #1F1B18;
   --iron-soft: #2A2522;
-  --smoke: #3A3733;
+  /* Tertiary text tier. Lifted from #3A3733 (≈1.8:1 on --void — a WCAG
+     failure that made captions, hints, and the AI disclaimer barely legible)
+     to ≈4.5:1 while staying clearly dimmer than --ash, preserving the
+     four-level hierarchy (bone → ash → smoke → decoration). */
+  --smoke: #857F78;
   --ash: #9E9A94;
   --bone: #E8E4DD;
   --paper: #F2EFEA;
@@ -141,9 +145,23 @@
 html,
 body,
 #app {
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
   background: var(--void);
+  /* NO global `overflow: hidden` here. It killed scrolling on every ordinary
+     route — /me (learning), /settings, /share, /legal — where content is
+     taller than the viewport. The immersive app shell doesn't need it either:
+     `.canvas` is position:fixed + inset:0 + overflow:hidden, so it locks
+     itself. Scoping the lock to the shell fixes the dead pages without
+     touching the frame carousel. */
+}
+
+/* Fluid root size — the whole UI is rem-based, so scaling the root scales
+   every type size, gap, and radius with the display. Fixed 16px meant a
+   2560px monitor rendered the same pixel sizes as a 1280px laptop, which is
+   why the interface read as "tiny" on a big screen. Clamped so phones stay at
+   16px (iOS zoom-safe) and huge displays stop at a sane 22px. */
+html {
+  font-size: clamp(16px, 0.5vw + 13px, 22px);
 }
 
 body {
@@ -154,7 +172,7 @@ body {
   background:
     radial-gradient(900px 500px at -6% -10%, rgba(214, 0, 23, 0.18), transparent 62%),
     radial-gradient(1100px 600px at 110% 108%, rgba(139, 0, 0, 0.14), transparent 64%),
-    linear-gradient(180deg, #0C0908 0%, var(--void) 60%, #05040 100%);
+    linear-gradient(180deg, #0C0908 0%, var(--void) 60%, #050404 100%);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -416,7 +434,10 @@ pre code {
   top: 0;
   left: 0;
   right: 0;
-  height: 320px;
+  /* 320px left only ~450px of a 900px viewport for the actual answer once the
+     bottom chrome is subtracted, so dense frames (diagrams) got cut off. The
+     avatar still reads clearly at 250px and the content gains 70px. */
+  height: 250px;
   z-index: 40;
   border-bottom: 1px solid var(--line-soft);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
@@ -435,7 +456,12 @@ pre code {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 21rem 2rem 6rem;
+  /* Vertical gutters are px, NOT rem: they must stay locked to the avatar
+     strip's pixel height and the fixed chrome, which don't scale with the
+     fluid root size. Top clears the 250px avatar; bottom reserves room for the
+     prompt bar + progress pill + narration so fixed chrome never sits on top
+     of frame content. */
+  padding: 272px 2rem 200px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease;
@@ -450,8 +476,16 @@ pre code {
 }
 
 .frame-content {
-  width: min(900px, 100%);
+  /* Was hard-capped at 900px, which on a 2560px display left the answer
+     stranded in a narrow 35%-wide column surrounded by void — the whole UI
+     read as "tiny". Scale with the viewport but stay inside a comfortable
+     measure so prose never runs to unreadable line lengths. */
+  width: min(1440px, 92%);
   max-width: 100%;
+  /* `margin: auto` (rather than align-items:center on the parent) centers a
+     short frame in the leftover space but still lets a tall one overflow and
+     scroll without clipping its top — the classic flexbox centering trap. */
+  margin-block: auto;
   min-width: 0;
   position: relative;
   z-index: 1;
@@ -540,6 +574,35 @@ pre code {
     1px 0 var(--nex-pink);
 }
 
+/* ── Code step-through (CodeRenderer) ─────────────────────────── */
+.code-step-container pre {
+  background: transparent !important;
+  padding: 1rem 1.25rem;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.code-step-container code {
+  display: block;
+}
+.code-step-container [data-line] {
+  display: inline-block;
+  width: 100%;
+  padding: 0 0.5rem;
+  margin: 0 -0.5rem;
+  border-left: 2px solid transparent;
+  transition: opacity 280ms ease, background 280ms ease, border-left-color 280ms ease;
+}
+.code-step-container .code-step-dim {
+  opacity: 0.32;
+}
+.code-step-container .code-step-active {
+  opacity: 1;
+  background: rgba(214, 0, 23, 0.08);
+  border-left-color: var(--crimson);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rise-in,
   .loading-breathe,
@@ -547,8 +610,77 @@ pre code {
   .glitch-hover:hover {
     animation: none;
   }
+  .code-step-container [data-line] {
+    transition: none !important;
+  }
+  .code-step-container .code-step-dim {
+    opacity: 0.6;
+  }
+  .talking-head-bg,
+  .talking-head-side,
+  .frame {
+    transition: none !important;
+  }
   * {
     transition-duration: 0ms !important;
+  }
+}
+
+/* ── Mobile breakpoints (≤640px) ─────────────────────────────── */
+@media (max-width: 640px) {
+  .talking-head-side {
+    height: 220px;
+  }
+  .talking-head-bg {
+    /* keep fullscreen background, but ensure it doesn't ignore the
+       smaller viewport when child Three canvas computes pixel ratio */
+    inset: 0;
+  }
+  .frame {
+    /* px for the same reason as desktop — these clear fixed-pixel chrome.
+       Bottom also clears the iOS home indicator via the safe-area inset
+       (needs viewport-fit=cover, set in __root). */
+    padding: 224px 0.75rem max(80px, calc(64px + env(safe-area-inset-bottom)));
+  }
+  .frame-container {
+    padding: 0;
+  }
+  .frame-content {
+    padding: 0.5rem;
+    width: 100%;
+  }
+  .input-bmth {
+    /* prevents iOS Safari from auto-zooming on focus */
+    font-size: 16px;
+  }
+  /* Agent-authored grids ask for 2-4 columns; on a phone that's unreadable, so
+     collapse to a single column. Desktop keeps the requested count. */
+  .ui-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .display-title {
+    font-size: 3rem !important;
+    line-height: 0.92;
+  }
+  .btn-crimson,
+  .btn-ghost {
+    /* WCAG / Apple HIG minimum tap target */
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* ── Landscape phones / short viewports ──────────────────────────
+   A 375×667 phone rotated to 667×375 leaves only 375px of height. The
+   fixed 220px avatar panel + a 14rem top gutter would leave almost no
+   room for the frame. Collapse the avatar to a slim strip and pull the
+   frame's top gutter in so content stays usable in landscape. */
+@media (max-height: 520px) and (max-width: 960px) {
+  .talking-head-side {
+    height: 120px;
+  }
+  .frame {
+    padding: 136px 0.75rem max(56px, calc(40px + env(safe-area-inset-bottom)));
   }
 }
 
@@ -559,5 +691,110 @@ pre code {
   body {
     background-color: var(--background);
     color: var(--foreground);
+  }
+}
+
+/* ── Print stylesheet ────────────────────────────────────────────
+   Browsers snapshot the DOM + CSSOM to PDF; live <canvas> contexts
+   (Three.js for particles, Manim's mp4) typically emit blank rects.
+   PrintFrame.tsx routes those skills to text fallbacks. This block
+   strips the dark theme so the PDF is paper-friendly.
+   ────────────────────────────────────────────────────────────── */
+@media print {
+  /* Force light theme — the dark UI prints as a pure-black square on
+     paper, which wastes toner and hides text. */
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Strip the grain + scanlines overlays — they print as a uniform
+     gray haze across every page. */
+  body::before,
+  body::after {
+    display: none !important;
+  }
+
+  /* The fixed AI-disclaimer footer in __root.tsx must not occupy
+     paper. */
+  footer,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* The .canvas shell uses position:fixed + 100dvh + overflow:hidden,
+     which in print collapses to one viewport-sized page with the rest
+     of the content cut off. Reset to flow layout. */
+  .canvas {
+    position: static !important;
+    inset: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Frame articles must not split mid-frame across pages. Some
+     browsers (Firefox especially) only honor break-inside; older
+     Chrome only honors page-break-inside. Setting both is cheap and
+     covers the matrix. */
+  article,
+  .print-frame {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Audio elements can't play on paper. Hide the bar entirely. */
+  audio {
+    display: none !important;
+  }
+
+  /* Force black text + white backgrounds on all the design-token-driven
+     elements. Important: we do NOT use `* { color: black }` because
+     that nukes Excalidraw's SVG fills. Target our component classes. */
+  .display-title,
+  .kicker,
+  .text-bone,
+  .text-ash,
+  .text-smoke,
+  .text-crimson,
+  p, h1, h2, h3, h4, h5, h6, span, li, dt, dd {
+    color: black !important;
+  }
+
+  .glass-card,
+  .feature-card,
+  .island-shell,
+  .input-bmth,
+  .glass-input {
+    background: white !important;
+    border-color: #ccc !important;
+    box-shadow: none !important;
+    color: black !important;
+  }
+
+  /* Print-only title block — the onscreen header is hidden via
+     [data-no-print], but PDF readers benefit from a visible title at
+     the top of page 1. */
+  .print-only-title {
+    display: block !important;
+  }
+
+  /* Drop CSS animations during print — running rise-in / breathe at
+     print snapshot time can capture mid-animation opacity:0 frames. */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Page margins are user-controlled in the print dialog; setting
+     @page lets us hint a sane default. */
+  @page {
+    margin: 16mm 14mm;
   }
 }

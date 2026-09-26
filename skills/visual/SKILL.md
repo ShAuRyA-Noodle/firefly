@@ -1,6 +1,6 @@
 ---
 name: visual
-description: Visual rendering skills for generating animations, diagrams, interactive UI, and particle simulations
+description: Use when the answer is best communicated through animation, diagram, simulation, code walkthrough, or structured UI rather than prose. Best for any explanation that benefits from being seen, not just read.
 domains: ["visual", "rendering"]
 ---
 

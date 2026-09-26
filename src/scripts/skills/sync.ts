@@ -169,12 +169,12 @@ async function syncSkills() {
     `Found ${fsSkills.length} skills, ${fsFiles.length} files\n`
   );
 
-  const dbSkills = (await client.query(api.skills.list, {})) as Array<
-    SkillMeta & { _id: string }
-  >;
-  const dbFiles = (await client.query(api.skills.listAllFiles, {})) as Array<
-    SkillFile & { _id: string }
-  >;
+  const dbSkills = (await client.query(api.skills.list, {
+    secret: syncSecret,
+  })) as Array<SkillMeta & { _id: string }>;
+  const dbFiles = (await client.query(api.skills.listAllFiles, {
+    secret: syncSecret,
+  })) as Array<SkillFile & { _id: string }>;
 
   const dbSkillsByName = new Map(dbSkills.map((s) => [s.name, s]));
   const dbFilesByKey = new Map(

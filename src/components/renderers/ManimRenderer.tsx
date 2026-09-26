@@ -110,6 +110,31 @@ function createObject(def: ObjectDef): Mobject | null {
           color: def.color ?? '#ef4444',
           point: def.position ?? [0, 0, 0],
         })
+      case 'vector': {
+        // origin + direction → an arrow. Documented in the skill spec.
+        const origin = Array.isArray(def.origin) ? def.origin : [0, 0, 0]
+        const dir = Array.isArray(def.direction) ? def.direction : [1, 0, 0]
+        const ox = origin[0] ?? 0, oy = origin[1] ?? 0, oz = origin[2] ?? 0
+        const start: [number, number, number] = [ox, oy, oz]
+        const end: [number, number, number] = [
+          ox + (dir[0] ?? 0),
+          oy + (dir[1] ?? 0),
+          oz + (dir[2] ?? 0),
+        ]
+        return new Arrow({ start, end, color: def.color ?? '#22c55e' })
+      }
+      case 'number_line': {
+        // 1D axis — render as a horizontal line spanning the range. Keeps the
+        // renderer crash-free without depending on a NumberLine mobject.
+        const range = Array.isArray(def.range) ? def.range : [-5, 5]
+        const y = Array.isArray(def.position) ? (def.position[1] ?? 0) : 0
+        return new Line({
+          start: [range[0] ?? -5, y, 0],
+          end: [range[1] ?? 5, y, 0],
+          color: def.color ?? '#888888',
+          strokeWidth: def.strokeWidth ?? 2,
+        })
+      }
       case 'text': {
         const text = new Text({
           text: def.content ?? def.text ?? '',
@@ -170,6 +195,23 @@ function createAnimation(
         // Build a target object from the 'to' config
         const targetObj = createObject({ ...def.to, type: def.to.type ?? 'circle', id: '_transform_target' })
         return targetObj ? new Transform(target, targetObj, opts) : null
+      case 'moveTo': {
+        // Reposition the target to the given point. manim-web mobjects expose
+        // moveTo(); we apply it in sequence (no dedicated move animation
+        // class) so the object lands at its new spot when this step plays.
+        const to = def.to?.position ?? def.position ?? def.to
+        if (target && Array.isArray(to)) {
+          try {
+            ;(target as any).moveTo?.(to)
+          } catch {
+            // ignore — defensive
+          }
+        }
+        return null
+      }
+      case 'indicate':
+        // Brief highlight — approximate with a fade-in pulse on the target.
+        return target ? new FadeIn(target, opts) : null
       case 'wait':
         return null // handled as scene.wait()
       default:

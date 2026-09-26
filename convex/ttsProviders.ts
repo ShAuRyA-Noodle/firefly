@@ -1,6 +1,14 @@
+import { requireEnv, optionalEnv } from "./lib/env";
+import { Breaker } from "./lib/breaker";
+
 type SarvamResult = { audioBytes: Uint8Array; mimeType: string };
 type AlignResult = { words: string[]; wtimes: number[]; wdurations: number[] };
-type GroqTtsResult = { audioBytes: Uint8Array; mimeType: string; timings: AlignResult };
+
+// Per-provider breakers. Open after 4 hard failures (non-retriable 4xx or
+// exhausted 5xx retries), 30s cooldown. Shared within a single action
+// invocation — multiple chunks against the same provider stop hammering.
+const sarvamBreaker = new Breaker("sarvam", 4, 30_000);
+const whisperBreaker = new Breaker("groq-whisper", 4, 30_000);
 
 const SARVAM_ENDPOINT = "https://api.sarvam.ai/text-to-speech";
 const GROQ_WHISPER_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions";
@@ -156,48 +164,49 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 export async function sarvamTts(narration: string): Promise<SarvamResult> {
-  const apiKey = process.env.SARVAM_API_KEY;
-  if (!apiKey) throw new Error("[Sarvam] Missing SARVAM_API_KEY");
-  const model = process.env.SARVAM_TTS_MODEL ?? "bulbul:v2";
-  const voice = process.env.SARVAM_VOICE ?? "anushka";
-  const language = process.env.SARVAM_LANGUAGE ?? "en-IN";
+  const apiKey = requireEnv("SARVAM_API_KEY");
+  const model = optionalEnv("SARVAM_TTS_MODEL", "bulbul:v2");
+  const voice = optionalEnv("SARVAM_VOICE", "anushka");
+  const language = optionalEnv("SARVAM_LANGUAGE", "en-IN");
 
   const chunks = splitIntoChunks(narration, 450);
   if (chunks.length === 0) throw new Error("[Sarvam] empty narration");
   console.log(`[Sarvam] synthesizing ${chunks.length} chunk(s), total ${narration.length} chars`);
 
   const buffers = await Promise.all(
-    chunks.map(async (chunk, idx) => {
-      const res = await fetchWithRetry(
-        SARVAM_ENDPOINT,
-        {
-          method: "POST",
-          headers: {
-            "api-subscription-key": apiKey,
-            "Content-Type": "application/json",
+    chunks.map(async (chunk, idx) =>
+      sarvamBreaker.run(async () => {
+        const res = await fetchWithRetry(
+          SARVAM_ENDPOINT,
+          {
+            method: "POST",
+            headers: {
+              "api-subscription-key": apiKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              inputs: [chunk],
+              target_language_code: language,
+              speaker: voice,
+              model,
+              pitch: 0,
+              pace: 1.0,
+              loudness: 1.0,
+              speech_sample_rate: 22050,
+              enable_preprocessing: true,
+            }),
           },
-          body: JSON.stringify({
-            inputs: [chunk],
-            target_language_code: language,
-            speaker: voice,
-            model,
-            pitch: 0,
-            pace: 1.0,
-            loudness: 1.0,
-            speech_sample_rate: 22050,
-            enable_preprocessing: true,
-          }),
-        },
-        "[Sarvam]",
-      );
-      const json = (await res.json()) as { audios?: string[]; request_id?: string };
-      if (!json.audios || json.audios.length === 0) {
-        throw new Error(`[Sarvam] missing audios in response (request_id=${json.request_id ?? "?"})`);
-      }
-      const bytes = base64ToBytes(json.audios[0]);
-      console.log(`[Sarvam] chunk ${idx + 1}/${chunks.length} ok (${bytes.length} bytes)`);
-      return bytes;
-    }),
+          "[Sarvam]",
+        );
+        const json = (await res.json()) as { audios?: string[]; request_id?: string };
+        if (!json.audios || json.audios.length === 0) {
+          throw new Error(`[Sarvam] missing audios in response (request_id=${json.request_id ?? "?"})`);
+        }
+        const bytes = base64ToBytes(json.audios[0]);
+        console.log(`[Sarvam] chunk ${idx + 1}/${chunks.length} ok (${bytes.length} bytes)`);
+        return bytes;
+      }),
+    ),
   );
 
   const merged = concatWavBuffers(buffers);
@@ -208,9 +217,8 @@ export async function groqWhisperAlign(
   audioBytes: Uint8Array,
   mimeType: string,
 ): Promise<AlignResult> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error("[Whisper] Missing GROQ_API_KEY");
-  const model = process.env.GROQ_WHISPER_MODEL ?? "whisper-large-v3";
+  const apiKey = requireEnv("GROQ_API_KEY");
+  const model = optionalEnv("GROQ_WHISPER_MODEL", "whisper-large-v3");
 
   const form = new FormData();
   // Using a Blob with the WAV mime type so Whisper's auto-detection picks the right decoder.
@@ -221,14 +229,16 @@ export async function groqWhisperAlign(
   form.append("language", "en");
 
   console.log(`[Whisper] aligning ${audioBytes.length} bytes with model ${model}`);
-  const res = await fetchWithRetry(
-    GROQ_WHISPER_ENDPOINT,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-    },
-    "[Whisper]",
+  const res = await whisperBreaker.run(() =>
+    fetchWithRetry(
+      GROQ_WHISPER_ENDPOINT,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
+      },
+      "[Whisper]",
+    ),
   );
 
   const json = (await res.json()) as {
@@ -251,8 +261,3 @@ export async function groqWhisperAlign(
   return { words, wtimes, wdurations };
 }
 
-export async function groqPlayAiTts(_narration: string): Promise<GroqTtsResult> {
-  // Planned: POST https://api.groq.com/openai/v1/audio/speech with model "playai-tts",
-  // voice param, and response_format "wav"; then run groqWhisperAlign over the returned audio.
-  throw new Error("playai-tts not yet enabled");
-}
