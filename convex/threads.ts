@@ -2,6 +2,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { authedQuery } from "./lib/functions";
+import type { Doc } from "./_generated/dataModel";
 
 // Mirror of the agent-side cap. Kept duplicated rather than imported to
 // avoid importing agent.ts (which pulls in heavy LLM/SDK init) from the
@@ -251,7 +252,7 @@ export const ancestorTrail = authedQuery({
     if (!cursor || cursor.userId !== ctx.userId) return [];
     let hops = 0;
     while (cursor?.parentThreadId && hops < 16) {
-      const parent = await ctx.db.get(cursor.parentThreadId);
+      const parent: Doc<"threads"> | null = await ctx.db.get(cursor.parentThreadId);
       if (!parent || parent.userId !== ctx.userId) break;
       trail.unshift({
         agentThreadId: parent.agentThreadId,

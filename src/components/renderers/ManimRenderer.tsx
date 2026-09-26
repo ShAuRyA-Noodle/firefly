@@ -3,9 +3,9 @@ import { ManimScene } from 'manim-web/react'
 import {
   Circle, Square, Rectangle, Line, Arrow, Dot, Text, MathTex,
   FunctionGraph, Axes,
-  Create, FadeIn, FadeOut, Transform, Write,
-  type Scene, type Mobject,
+  Create, FadeIn, FadeOut, Transform, Write
 } from 'manim-web'
+import type { Scene, Mobject } from 'manim-web'
 
 /**
  * Compile an agent-supplied math expression into a pure function of x.
@@ -190,11 +190,12 @@ function createAnimation(
         return target ? new FadeIn(target, opts) : null
       case 'fadeOut':
         return target ? new FadeOut(target, opts) : null
-      case 'transform':
+      case 'transform': {
         if (!target || !def.to) return null
         // Build a target object from the 'to' config
         const targetObj = createObject({ ...def.to, type: def.to.type ?? 'circle', id: '_transform_target' })
         return targetObj ? new Transform(target, targetObj, opts) : null
+      }
       case 'moveTo': {
         // Reposition the target to the given point. manim-web mobjects expose
         // moveTo(); we apply it in sequence (no dedicated move animation

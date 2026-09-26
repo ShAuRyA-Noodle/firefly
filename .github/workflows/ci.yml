@@ -13,3 +13,5 @@ jobs:
       - run: ./node_modules/.bin/tsc --noEmit
       - run: bun run lint
       - run: bun run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144

@@ -1,15 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useAction, useQuery, useConvexAuth } from 'convex/react'
 import { useAuthActions } from '@convex-dev/auth/react'
 import { api } from '../../convex/_generated/api'
 import { FrameContainer } from '../components/FrameContainer'
 import { PromptInput } from '../components/PromptInput'
-import TalkingHead, { type TalkingHeadHandle } from '../components/TalkingHead'
+import TalkingHead from '../components/TalkingHead'
+import type { TalkingHeadHandle } from '../components/TalkingHead'
 import { Onboarding } from '../components/Onboarding'
 import { KeyboardHelp } from '../components/KeyboardHelp'
 import { reportError } from '#/lib/observability'
-import { Link } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/')({ component: AppShell })
 

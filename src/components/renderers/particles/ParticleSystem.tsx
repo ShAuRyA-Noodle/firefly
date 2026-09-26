@@ -138,15 +138,11 @@ export function ParticleSystem({ config }: { config: ParticlesConfig }) {
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
-          array={buffers.positions}
-          count={count}
-          itemSize={3}
+          args={[buffers.positions, 3]}
         />
         <bufferAttribute
           attach="attributes-color"
-          array={buffers.colors}
-          count={count}
-          itemSize={3}
+          args={[buffers.colors, 3]}
         />
       </bufferGeometry>
       <pointsMaterial

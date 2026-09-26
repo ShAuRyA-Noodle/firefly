@@ -93,7 +93,7 @@ export const recordAnswer = authedMutation({
       throw new Error(`No quiz at index ${questionIndex}`);
     }
 
-    const props = (found.node.props ?? {}) as Record<string, unknown>;
+    const props = found.node.props ?? {};
     const rawCorrect = props["correctAnswer"];
     if (typeof rawCorrect !== "string") {
       throw new Error(

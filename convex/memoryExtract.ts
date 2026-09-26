@@ -8,7 +8,7 @@
  * director's prompt on follow-up questions as prior context.
  */
 
-import { internalAction } from "./_generated/server";
+import { internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { generateText } from "ai";
 import { internal } from "./_generated/api";
@@ -141,8 +141,6 @@ function safeParseJson(text: string): unknown {
     }
   }
 }
-
-import { internalQuery } from "./_generated/server";
 
 function isNarratedFrame(skill: string): boolean {
   // Sentinels + generic intros carry no question-specific content worth

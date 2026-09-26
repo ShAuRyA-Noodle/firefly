@@ -38,11 +38,8 @@
  */
 
 import { v } from "convex/values";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-} from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
+import type { ActionCtx } from "./_generated/server";
 import { authedAction, authedQuery } from "./lib/functions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -226,7 +223,7 @@ export const deleteShareLinksBatch = internalMutation({
 // order. Listed individually (not by table name) so the FunctionReference
 // types stay narrow; loose maps lose typing.
 async function deleteOneTableUntilEmpty(
-  ctx: Parameters<Parameters<typeof internalAction>[0]["handler"]>[0],
+  ctx: ActionCtx,
   table: CascadeTable,
   userId: Id<"users">,
 ): Promise<number> {

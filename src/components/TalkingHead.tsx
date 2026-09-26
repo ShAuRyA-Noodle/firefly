@@ -160,6 +160,8 @@ type UniformsBag = {
   aura: Record<string, { value: any }>
 }
 
+// Keep Three.js lazy: these helpers receive the module after the avatar loads.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 function buildSkinMaterial(THREE: typeof import('three'), uniformsOut: { current: UniformsBag | null }) {
   const skin = {
     uBase:     { value: new THREE.Color('#0E0908') },
@@ -196,6 +198,7 @@ function buildSkinMaterial(THREE: typeof import('three'), uniformsOut: { current
   return mat
 }
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 function buildWireMaterial(THREE: typeof import('three'), bag: UniformsBag) {
   const mat = new THREE.ShaderMaterial({
     vertexShader:   WIRE_VERT,
