@@ -118,7 +118,7 @@ export function FrameContainer({
 
       const container = containerRef.current
       if (!container) return
-      const activeFrame = container.querySelector('.frame.active') as HTMLElement | null
+      const activeFrame = container.querySelector('.frame.active')
       if (!activeFrame) {
         e.preventDefault()
         return

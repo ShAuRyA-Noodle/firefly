@@ -4,6 +4,8 @@ import { FrameSkeleton } from './FrameSkeleton'
 import { UIRenderer } from './renderers/UIRenderer'
 import { validateSkillConfig } from '../../convex/lib/skillSchemas'
 
+import type { Id } from '../../convex/_generated/dataModel'
+
 // Code-split heavy renderers — only their bytes download when needed,
 // and never on the critical path of the first paint.
 const ManimRenderer = lazy(() =>
@@ -26,8 +28,6 @@ type Explanation = {
   narration?: string
   step?: number
 }
-
-import type { Id } from '../../convex/_generated/dataModel'
 
 export function SkillRouter({
   explanation,

@@ -2,8 +2,7 @@
 import { v } from "convex/values";
 import { internalAction, internalQuery } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
-import { createThread, listUIMessages, syncStreams } from "@convex-dev/agent";
-import { vStreamArgs } from "@convex-dev/agent";
+import { createThread, listUIMessages, syncStreams, vStreamArgs } from "@convex-dev/agent";
 import { paginationOptsValidator } from "convex/server";
 import { components, internal } from "./_generated/api";
 import { directorAgent } from "./agent";

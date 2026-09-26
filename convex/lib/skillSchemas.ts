@@ -17,11 +17,8 @@ export type SkillName = "manim" | "diagram" | "ui" | "particles" | "code";
 
 // ─── Shared primitives ────────────────────────────────────────────────────
 
-const vec2 = z.tuple([z.number(), z.number()]);
 const vec3 = z.tuple([z.number(), z.number(), z.number()]);
-const position = z.union([vec2, vec3]);
 const range = z.tuple([z.number(), z.number()]);
-const rangeStep = z.union([range, z.tuple([z.number(), z.number(), z.number()])]);
 
 // [lambda] Optional 1-2 sentence plain-English summary of what the frame
 // conveys. Backward-compat: every consumer treats this as optional, so

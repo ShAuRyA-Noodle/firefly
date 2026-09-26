@@ -8,6 +8,7 @@ import { ActionCache } from "@convex-dev/action-cache";
 import { components, internal } from "./_generated/api";
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import type { FunctionReference } from "convex/server";
 import { generateText } from "ai";
 import { utilityTextModel } from "./lib/models";
 
@@ -31,7 +32,7 @@ export const generateIntroText = internalAction({
   },
 });
 
-export const introTextCache = new ActionCache(components.actionCache, {
+export const introTextCache: ActionCache<FunctionReference<"action", "internal", { prompt: string }, string>> = new ActionCache(components.actionCache, {
   action: internal.cache.generateIntroText,
   name: "intro-text-v1",
   ttl: HOUR * 24,

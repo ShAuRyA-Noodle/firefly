@@ -17,7 +17,7 @@ import { v } from "convex/values";
 import { z } from "zod";
 import { generateText } from "ai";
 import { components, internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Id, Id as DataId } from "./_generated/dataModel";
 import { validateSkillConfig } from "./lib/skillSchemas";
 import { MAX_FRAMES_PER_THREAD } from "./turns";
 import {
@@ -26,8 +26,6 @@ import {
   fallbackTextModel,
 } from "./lib/models";
 import type { TextModel } from "./lib/models";
-import type { Id as DataId } from "./_generated/dataModel";
-
 // Model selection lives in ./lib/models — the single switch point for the
 // whole app (Groq today, OpenRouter-ready). These are logging labels only;
 // the actual primary/fallback models come from primaryTextModel() /
